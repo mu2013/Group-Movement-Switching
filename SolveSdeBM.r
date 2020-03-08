@@ -1,7 +1,16 @@
 
 solvesdeBM<-function(A,dt,alpha,beta,rho,sigma)
 {
-      F = as.matrix( expm(A*dt) )
+      #F = as.matrix( expm(A*dt) )
+      #F = as.matrix( expm::expm(A*dt) )
+
+      fe <- exp((-alpha)*dt)
+      
+      F = diag(nai+2)
+      F = F*fe 
+      F[3:(nai+2), 2] = 1 - fe
+      F[1,1]=1
+      F[2,2]=1
         
 ###  Var  = delta - e^At*delta*e^A't     Q variance   or  \Xi in paper
      # csigma=Pinf-F%*%Pinf%*%t(F)
