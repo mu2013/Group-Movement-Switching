@@ -1,9 +1,10 @@
 
 source('Setup.r')
 source('GenStates.r')
+source('lam_lik.r')
 set.seed(3809)
 
-iter = 50  #  50000
+iter =  50000
 
 nstate = all_s[,-1] 
 nsw_ind = sw_ind
@@ -27,7 +28,17 @@ osp_state = ostate[which(osw_ind=='SP'),]    ## states at sampling points
 opon_ind = pro_st$pro_pon_ind                ## switch indicators at all proposed swiching and sampling points 
 opon_time = pro_st$pro_pon_time              ## time at all proposed swiching and sampling points 
 opon_probAll = pro_st$pro_pon_probAll        ## probability at all proposed swiching and sampling points
-#olnlik_lam = -Inf
+
+ #  sumstate = apply(ostate,1,sum)[-1]
+ #  test = opon_ind[which(opon_ind!='pn')]
+
+ #  test[which(test=='sp')] = 0
+ #  test[which(test=='OB')] = 1
+ #  test[which(test=='BO')] = -1
+ #  test = as.numeric(test)
+
+ # if( sum( sumstate-c(cumsum(test)+5) ) !=0 )
+ # { break }
 
 
 ptm <- proc.time()
@@ -36,20 +47,15 @@ ptm <- proc.time()
 for(j in 1:iter)
 #for(j in 25001:40000)
 {
-## propose new switching rates ##########
-nlambdaOB <-  rnorm(1,swlamda[1],0.05) 
-nlambdaBO <-  rnorm(1,swlamda[2],0.1) 
 
-if( 0.02<nlambdaOB & nlambdaOB <nlambdaBO & nai*nlambdaBO<Kappa)
-  {
-     nswlamda=c(nlambdaOB ,nlambdaBO)
+  for(jj in 1:5){  ## state estimation loop 
  ## propose states list for all animals with switching time
      uplen = 3  #3 is the minimum, in fact we only update the mid point, the start and end states are fixed
      #start_time = sample( seq(2,94,by=2),1)
      start_time = sample( seq(2,(mxsamp - (uplen-1)*deltat),by=deltat ),1)
      end_time = start_time+(uplen-1)*deltat
      
-     pro_st = GenStates( nswlamda,deltat,  uplen,start_time, osp_state,ostate,otime,osw_ind,opon_ind,opon_time)
+     pro_st = GenStates( swlamda,deltat,  uplen,start_time, osp_state,ostate,otime,osw_ind,opon_ind,opon_time)
       nstate = pro_st$pro_state
       ntime = pro_st$pro_time
       nsw_ind = pro_st$pro_sw_ind
@@ -60,36 +66,56 @@ if( 0.02<nlambdaOB & nlambdaOB <nlambdaBO & nai*nlambdaBO<Kappa)
 
     if(iterbreak == 1)
     {
-      nopon_probAll = pro_st$pro_pon_probAll
-      ## assign a constant switching proability, this part of ln likelihood can be cancelled
-      #nlnlik_lam = sum(log( as.numeric(  opon_probAll[ which(opon_ind!='sp') ]   )  ))
-
       old_par = c(alpha,beta,rho,sigma,theta,Bsigma,swlamda)
-      par =  c(alpha,beta,rho,sigma,theta,Bsigma,nswlamda)
+      par =  c(alpha,beta,rho,sigma,theta,Bsigma,swlamda)
 
-      resst = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind, olik, nstate,ntime,nsw_ind, staccept)
+      resst = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind,opon_ind,opon_time,olik, nstate,ntime,nsw_ind, npon_ind,npon_time ,staccept)
       olik = resst$olik
-      #olnlik_lam = resst$olnlik_lam
 
       osp_state = resst$SPstate
-      swlamda = resst$par[8:9]
+      #swlamda = resst$par[8:9]
 
       ostate = resst$ostate
       otime = resst$otime
       osw_ind = resst$osw_ind
+
+      opon_ind = resst$opon_ind
+      opon_time = resst$opon_time
+
       staccept = resst$accept
     } 
-
-     } else{    
-    swlamda = swlamda
   }
 
-#########################################
+## propose new switching rates ##########
+nlambdaOB <-  rnorm(1,swlamda[1],0.05) 
+nlambdaBO <-  rnorm(1,swlamda[2],0.1) 
+nswlamda=c(nlambdaOB ,nlambdaBO)
+
+if( 0.02<nlambdaOB & nlambdaOB <nlambdaBO & nai*nlambdaBO<Kappa)
+  {
+#########################################  switching parameter
+
+      lam_oldlik = lam_lik( swlamda , opon_ind)
+      lam_newlik = lam_lik( nswlamda , opon_ind)
+
+      lam_sigHR <- exp(lam_newlik - lam_oldlik ) 
+        if(runif(1) < lam_sigHR) 
+         {
+           swlamda = nswlamda
+           lamaccept = lamaccept+1
+          } 
+
+#########################################  
+   }
+
+
+#########################################  diffusion parameter
 
   nalpha<-  rnorm(1,alpha,prop.alpha)   # 0.1
   old_par = c(alpha,beta,rho,sigma,theta,Bsigma)
   par = c(nalpha,beta,rho,sigma,theta,Bsigma)
-  resa = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind, olik, ostate,otime,osw_ind, alaccept)
+  resa = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind,opon_ind,opon_time,olik, ostate,otime,osw_ind,npon_ind,npon_time,alaccept)
+         
   alpha = resa$par[1]
   olik = resa$olik
   alaccept = resa$accept
@@ -97,7 +123,8 @@ if( 0.02<nlambdaOB & nlambdaOB <nlambdaBO & nai*nlambdaBO<Kappa)
     nrho<-( rnorm(1,rho,prop.rho) )   
     old_par = c(alpha,beta,rho,sigma,theta,Bsigma)
     par = c(alpha,beta,nrho,sigma,theta,Bsigma)
-    resr = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind, olik, ostate,otime,osw_ind, rhaccept)
+    resr = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind,opon_ind,opon_time,olik, ostate,otime,osw_ind,npon_ind,npon_time,rhaccept)
+          
     rho = resr$par[3]
     olik = resr$olik
     rhaccept = resr$accept
@@ -105,7 +132,7 @@ if( 0.02<nlambdaOB & nlambdaOB <nlambdaBO & nai*nlambdaBO<Kappa)
    nsigma<- ( rnorm(1,sigma,prop.sigma) )   
     old_par = c(alpha,beta,rho,sigma,theta,Bsigma)
     par = c(alpha,beta,rho,nsigma,theta,Bsigma)
-    ress = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind, olik, ostate,otime,osw_ind, sigaccept)
+    ress = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind,opon_ind,opon_time,olik, ostate,otime,osw_ind,npon_ind,npon_time,sigaccept)
     sigma = ress$par[4]
     olik = ress$olik
     sigaccept = ress$accept 
@@ -113,7 +140,7 @@ if( 0.02<nlambdaOB & nlambdaOB <nlambdaBO & nai*nlambdaBO<Kappa)
    nBsigma<- ( rnorm(1,Bsigma,prop.Bsigma) )  
    old_par = c(alpha,beta,rho,sigma,theta,Bsigma)
    par = c(alpha,beta,rho,sigma,theta,nBsigma)
-   resBs = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind, olik, ostate,otime,osw_ind, Bsigaccept)
+   resBs = Run_KF(par,old_par,osp_state, ostate,otime,osw_ind, opon_ind,opon_time,olik, ostate,otime,osw_ind,npon_ind,npon_time,Bsigaccept)
    Bsigma = resBs$par[7]
    olik = resBs$olik
    Bsigaccept = resBs$accept
@@ -133,7 +160,7 @@ if( 0.02<nlambdaOB & nlambdaOB <nlambdaBO & nai*nlambdaBO<Kappa)
      {
      #cat("iteration",j,"alpha",alaccept,"beta",beaccept,"rho",rhaccept,"sigma",sigaccept,"theta",theaccept,"Bsigma",Bsigaccept,"State", staccept,"\n")
      #cat("iteration",j,"State", staccept,"alpha",alaccept,"beta",beaccept,"\n") # "sigma",sigaccept
-     cat("iteration",j,"State", staccept,"alpha",alaccept,"rho",rhaccept,"Bsigma",Bsigaccept,"sigma",sigaccept,"iterkappa",pro_st$iterkappa,"\n")
+     cat("iteration",j,"State", staccept,"alpha",alaccept,"rho",rhaccept,"Bsigma",Bsigaccept,"sigma",sigaccept,"lambdas",lamaccept,"iterkappa",pro_st$iterkappa,"\n")
      }
 }
 

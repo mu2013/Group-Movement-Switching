@@ -8,7 +8,7 @@ source("SolveSdeBM.r")
 source('RunKF.r')
 
 
-source('Data_sim.r')
+ source('Data_sim.r')
 #source('Data_real.r')
 
 mxsamp = max(all_t)
@@ -63,6 +63,7 @@ osw = -10^4
 
 
 ################## initialise accept number ################################################## 
+lamaccept = 0
 alaccept  = 0
 #beaccept  = 0
 sigaccept = 0

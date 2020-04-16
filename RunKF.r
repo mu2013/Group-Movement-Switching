@@ -1,5 +1,5 @@
 
-Run_KF<-function(par,old_par,osp_state,ostate,otime,osw_ind, olik, nstate,ntime,nsw_ind,acceptm)
+Run_KF<-function(par,old_par,osp_state,ostate,otime,osw_ind,opon_ind, opon_time,olik, nstate,ntime,nsw_ind, npon_ind,npon_time,acceptm)
 {
 #(par,old_par,nstate,osp_state,ostate,ntime,nsw_ind,olik,acceptm)
   nalpha = par[1]
@@ -225,6 +225,8 @@ if(nalpha>threshd&nrho>threshd&nsigma>threshd&nBsigma>threshd)
        ostate = nstate
        otime = ntime
        osw_ind = nsw_ind
+       opon_ind  = npon_ind 
+       opon_time  = npon_time 
    }
    else 
    {
@@ -239,7 +241,7 @@ if(nalpha>threshd&nrho>threshd&nsigma>threshd&nBsigma>threshd)
        sp_state = osp_state
      }
 
-  return( list("par"=c(alpha,beta,rho,sigma,theta,Bsigma,swlamda),"olik"=olik,"accept"=acceptm,"SPstate"=sp_state,"ostate"=ostate,"otime"=otime,"osw_ind"=osw_ind) )
+  return( list("par"=c(alpha,beta,rho,sigma,theta,Bsigma,swlamda),"olik"=olik,"accept"=acceptm,"SPstate"=sp_state,"ostate"=ostate,"otime"=otime,"osw_ind"=osw_ind,"opon_ind"=opon_ind,"opon_time"=opon_time) )
 
 }
 

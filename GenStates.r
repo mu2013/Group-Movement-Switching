@@ -213,7 +213,7 @@ iterkappa = iterkappa +1
 
 ## if we cannot make the proposed state the same as the end time point in 5000 iterations, 
 ## we just reject the proposed states and use the old one. 
-  if(iterkappa == 5000)   
+  if(iterkappa == 3000)   
    {
     iterbreak = 2
     break
@@ -300,6 +300,7 @@ if( iterbreak == 1 )
 }
 
 
+
   # Kappa = max(swlamda)
   # pro_all_time=c(0)
   # repeat
@@ -319,4 +320,15 @@ if( iterbreak == 1 )
   #   state[SwitchAnimal] = 3 - state[SwitchAnimal]   
   #   }         
   # }
+
+# all_pon = pro_st$pro_pon_ind[ which( pro_st$pro_pon_ind != 'sp') ]
+# all_pon[which(all_pon=='pn')] = 0
+# all_pon[which(all_pon=='OB')] = -1
+# all_pon[which(all_pon=='BO')] = 1
+# all_pon = as.numeric(all_pon)
+# all_pon =cumsum(all_pon)
+
+
+
+
 
